@@ -8,6 +8,12 @@ import shutil
 from pathlib import Path
 import openai
 import json
+from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed, before_log
+import logging
+import sys
+
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Define config variables
 READY_TO_EXPORT_LABEL = 'Ready to Export'
@@ -68,13 +74,39 @@ def handle_duplicate_name(note_title):
     return note_title
 
 
+import re
 
+def parse_generated_content(string_object):
+    # regular expression patterns for the keys and values
+    pattern = r'"(note_title|note_type|note_rewrite|note_prompts|note_expanded|note_topics)":(.*?)(?="note_title"|"note_type"|"note_rewrite"|"note_prompts"|"note_expanded"|"note_topics"|}$)'
+    
+    matches = re.findall(pattern, string_object, re.DOTALL)
+    dict_obj = {}
+    
+    for key, value in matches:
+        # remove leading and trailing spaces, quotes, and trailing commas
+        value = value.strip(" \n\",")
+
+        # replace escaped newline characters
+        value = value.replace('\\n', '\n')
+        
+        # if it's an array (note_topics), convert to list
+        if key == "note_topics":
+            value = value.strip("[]").split(",")
+            value = [item.strip(" \"") for item in value]
+        
+        dict_obj[key] = value
+    
+    return dict_obj
+
+
+@retry(wait=wait_fixed(0.5), stop=stop_after_attempt(5), before=before_log(logger, logging.INFO))
 def generate_note_fields(note):
 
     functions = [
         {
             "name": "generate_note_fields",
-            "description": "Construct file names for personal obsidian markdown vault",
+            "description": "Function for summarizing a personal note, constructing all of the required fields, context, and attributes for personal knowledge management.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -89,7 +121,15 @@ def generate_note_fields(note):
                     },
                     "note_rewrite": {
                         "type": "string",
-                        "description": "This field is a rewritten version of the provided note body. The provided note text is often a very rough representation of ideas and thoughts (i.e. voice transcripts, back of napkin idea, etc.). The goal is to represent the original text in a more organized and well written manner. It is not a summary, the goal is to simply reorganize and configure the information in a more clear and readable way. This field should only reflect the information and ideas provided in the input and should not extrapolate beyond the provided information."
+                        "description": "This field is a rewritten version of the provided note body. The provided note text is often a very rough representation of ideas and thoughts (i.e. voice transcripts, back of napkin idea, etc.). The goal is to represent the original text in a more organized and well written manner. It is not a summary, it is an improved and edited revision which maximizes clarity and readability. This field should only reflect the information and ideas provided in the input and should not extrapolate beyond the information provided in the text. Use rich markdown formatting, leveraging bold, italics, and bulleted (unordered) or numbered (ordered) lists where it helps to provide clarity and easy of reading."
+                    },
+                    "note_prompts": {
+                        "type": "string",
+                        "description": "A bulleted list (markdown format) of writing prompts to consider expanding on the idea or information represented in the provided text. For example, it may provide suggestions of how to expand the idea, find connections to related concepts, poke holes in or challenge the idea, or suggest other areas of research"
+                    },
+                    "note_expanded": {
+                        "type": "string",
+                        "description": "This field is a rewritten version of the provided note body. The provided note text is often a very rough representation of ideas and thoughts (i.e. voice transcripts, back of napkin idea, etc.). The goal is to represent the original text and expand where gaps exist, or related concepts or information would be benefitial. This is an improved and edited revision which maximizes clarity and readability. Use rich markdown formatting, leveraging bold, italics, and bulleted (unordered) or numbered (ordered) lists where it helps to provide clarity and easy of reading."
                     },
                     "note_topics": {
                         "type": "array",
@@ -99,7 +139,7 @@ def generate_note_fields(note):
                         "maxItems": 5
                     }
                 },
-                "required": ["note_title", "note_type", "note_rewrite", "note_topics"],
+                "required": ["note_title", "note_type", "note_rewrite", "note_prompts", "note_expanded", "note_topics"],
             },
         }
     ]
@@ -118,7 +158,7 @@ def generate_note_fields(note):
     print(response)
 
     # Get the function response message
-    output = json.loads(response['choices'][0]['message']['function_call']['arguments'])
+    output = parse_generated_content(response['choices'][0]['message']['function_call']['arguments'])
     return output
 
 
@@ -132,15 +172,13 @@ notes = keep.find(archived=False, trashed=False, func=lambda x: x.type == EXPORT
 notes = list(notes)
 len(notes)
 import random
-random.seed = 0
+random.seed(1989)
 random.shuffle(notes)
 notes = notes[0:10]
-for note in notes:
-    note.title
-i = 0
+i = -1
 for note in notes:
     i += 1
-    print(f'Starting Note: {note.title}, Note Text Length: {len(note.text)}, Index: {i}')
+    logger.info(f'Starting Note: {note.title}, Note Text Length: {len(note.text)}, Index: {i}')
 
     # Convert note to markdown
     text = note.text
@@ -161,20 +199,24 @@ for note in notes:
     title = generated_attr['note_title'] + ' (Generated)'
     type = generated_attr['note_type']
     rewrite = generated_attr['note_rewrite']
+    prompts = generated_attr['note_prompts']
+    expanded = generated_attr['note_expanded']
     topics = generated_attr['note_topics']
     
     if not note.title:
-        note.title = generate_note_fields(note.title, note.text)
+        note.title = title
 
     # Handle duplicate names
     formatted_title = format_title(note.title)
     unique_title = handle_duplicate_name(formatted_title)
 
     # Append generated fields
-    text += '\n\n-------------------------------------------------'
+    text += '\n\n-------------------------------------------------\n\n'
     text += f'Generated Title: {title}\n\n'
     text += f'Generated Type: {type}\n\n'
-    text += f'Generated Rewrite: \n\n{rewrite}'
+    text += f'Generated Rewrite: \n{rewrite}\n\n'
+    text += f'Generated Prompts: \n{prompts}\n\n'
+    text += f'Generated Expansion: \n{expanded}\n\n'
     text += f'Generated Topics: \n{topics}'
 
     # Save note
