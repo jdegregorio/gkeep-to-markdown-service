@@ -1,0 +1,5 @@
+###### Requirements without Version Specifiers ######`
+gkeepapi
+python-dotenv
+urllib3<2
+openai
