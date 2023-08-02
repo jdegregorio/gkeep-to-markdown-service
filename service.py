@@ -73,12 +73,20 @@ def handle_duplicate_name(note_title):
 
     return note_title
 
-
-import re
+def markdown_bulletize_list(input_list, double_brackets=False):
+    bullets = ''
+    for item in input_list:
+        item = item.replace('\\n', '')
+        item = item.replace('\n', '')
+        if double_brackets:
+            bullets += f'- [[{item}]]\n'
+        else:
+            bullets += f'- {item}\n'
+    return bullets
 
 def parse_generated_content(string_object):
     # regular expression patterns for the keys and values
-    pattern = r'"(note_title|note_type|note_rewrite|note_prompts|note_expanded|note_topics)":(.*?)(?="note_title"|"note_type"|"note_rewrite"|"note_prompts"|"note_expanded"|"note_topics"|}$)'
+    pattern = r'"(note_title|note_type|note_rewrite|note_ideas|note_topics_related|note_topics_contained)":(.*?)(?="note_title"|"note_type"|"note_rewrite"|"note_ideas"|"note_topics_related"|"note_topics_contained"|}$)'
     
     matches = re.findall(pattern, string_object, re.DOTALL)
     dict_obj = {}
@@ -91,13 +99,14 @@ def parse_generated_content(string_object):
         value = value.replace('\\n', '\n')
         
         # if it's an array (note_topics), convert to list
-        if key == "note_topics":
+        if key in ["note_topics_contained", "note_topics_related"]:
             value = value.strip("[]").split(",")
             value = [item.strip(" \"") for item in value]
         
         dict_obj[key] = value
     
     return dict_obj
+
 
 
 @retry(wait=wait_fixed(0.5), stop=stop_after_attempt(5), before=before_log(logger, logging.INFO))
@@ -121,25 +130,28 @@ def generate_note_fields(note):
                     },
                     "note_rewrite": {
                         "type": "string",
-                        "description": "This field is a rewritten version of the provided note body. The provided note text is often a very rough representation of ideas and thoughts (i.e. voice transcripts, back of napkin idea, etc.). The goal is to represent the original text in a more organized and well written manner. It is not a summary, it is an improved and edited revision which maximizes clarity and readability. This field should only reflect the information and ideas provided in the input and should not extrapolate beyond the information provided in the text. Use rich markdown formatting, leveraging bold, italics, and bulleted (unordered) or numbered (ordered) lists where it helps to provide clarity and easy of reading."
+                        "description": "This field is a rewritten version of the provided note body. The provided note text is often a very rough representation of ideas and thoughts (i.e. voice transcripts, back of napkin idea, etc.). This field represents the original text in a highly organized and clear manner. It is not a summary, it is an improved and edited revision which maximizes clarity and readability. This field should only reflect the information and ideas provided in the input and should not extrapolate beyond the information provided in the text. Use rich markdown formatting, leveraging bold, italics, and bulleted (unordered) or numbered (ordered) lists where it helps to provide clarity and easy of reading."
                     },
-                    "note_prompts": {
+                    "note_ideas": {
                         "type": "string",
-                        "description": "A bulleted list (markdown format) of writing prompts to consider expanding on the idea or information represented in the provided text. For example, it may provide suggestions of how to expand the idea, find connections to related concepts, poke holes in or challenge the idea, or suggest other areas of research"
+                        "description": "An bulleted list (markdown format) of discrete key atomic ideas from the provided note content. Ideas can be represented in different styles depending on how confidence. For example, they can be stated as declarative claims or statements if it is a clear idea. It can be stated as advice or imperitives if it is more suggestive, or it could be stated as a question if it is a loose idea that lacks conviction, but is meant to spark future thought or reflection. Each idea is a concise statement, imperitive, or question that is typically only one sentence, but can be up to a maximum of 3 sentences if required to clearly represent the full idea. Ideas should be atomic/singular. If an idea is very complex or multifaceted, break it up into more simple atomic components."
                     },
-                    "note_expanded": {
-                        "type": "string",
-                        "description": "This field is a rewritten version of the provided note body. The provided note text is often a very rough representation of ideas and thoughts (i.e. voice transcripts, back of napkin idea, etc.). The goal is to represent the original text and expand where gaps exist, or related concepts or information would be benefitial. This is an improved and edited revision which maximizes clarity and readability. Use rich markdown formatting, leveraging bold, italics, and bulleted (unordered) or numbered (ordered) lists where it helps to provide clarity and easy of reading."
-                    },
-                    "note_topics": {
+                    "note_topics_contained": {
                         "type": "array",
                         "description": "An array of discrete topics that are discussed in the note. Each topic should be a high level concept, entity, or definition.",
                         "items": {"type": "string"},
                         "minItems": 1,
-                        "maxItems": 5
+                        "maxItems": 6
+                    },
+                    "note_topics_related": {
+                        "type": "array",
+                        "description": "An array of discrete topics that are related (tangential, adjacent) to the note or a connected concept/topic in some way. Each topic should be a high level concept, entity, or definition. As an expert in the topics of the note, help the author discover related concepts that would help to expand the their knowledge and expedite their learning.",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "maxItems": 6                    
                     }
                 },
-                "required": ["note_title", "note_type", "note_rewrite", "note_prompts", "note_expanded", "note_topics"],
+                "required": ["note_title", "note_type", "note_rewrite", "note_ideas", "note_topics_contained",  "note_topics_related"]
             },
         }
     ]
@@ -147,8 +159,8 @@ def generate_note_fields(note):
     response = openai.ChatCompletion.create(
         model="gpt-4-0613",
         messages=[
-            {"role": "system", "content": "You are a highly experienced assistant specializing in Zettlekasten note taking, as well as other personal knowledge management (PKM) systems (i.e. PARA). You are highly trained in reviewing and sythesizing information, and organizing knowlege in an intuitive and clean manner."},
-            {"role": "user", "content": f"Please review the contents of the following note.\n\nNOTE TITLE:  {note.title}\n\nNOTE CONTENTS:\n'''\n{note.text}\n'''"}
+            {"role": "system", "content": "You are a highly experienced assistant specializing in Zettlekasten note taking, as well as other personal knowledge management (PKM) systems (i.e. PARA). You are highly trained in reviewing and sythesizing information, and organizing knowlege in an intuitive and clean manner. You are a highly proficient and effective writter and communicator, highly capble of presenting complex ideas and throughts in a clear and understandable way."},
+            {"role": "user", "content": f"Please review the contents of the following note.\n\n'''\nNOTE TITLE:  {note.title}\n\nNOTE CONTENTS:\n'''\n{note.text}\n'''"}
         ],
         functions=functions,
         function_call={"name": "generate_note_fields"},
@@ -158,7 +170,7 @@ def generate_note_fields(note):
     print(response)
 
     # Get the function response message
-    output = parse_generated_content(response['choices'][0]['message']['function_call']['arguments'])
+    output = response['choices'][0]['message']['function_call']['arguments']
     return output
 
 
@@ -174,7 +186,7 @@ len(notes)
 import random
 random.seed(1989)
 random.shuffle(notes)
-notes = notes[0:10]
+notes = notes[0:3]
 i = -1
 for note in notes:
     i += 1
@@ -195,14 +207,17 @@ for note in notes:
         text = text.replace(url, f"[{url}]({url})")
 
     # Generate note attributes
-    generated_attr = generate_note_fields(note)    
+    generated_response = generate_note_fields(note)
+    generated_attr = parse_generated_content(generated_response)
     title = generated_attr['note_title'] + ' (Generated)'
     type = generated_attr['note_type']
     rewrite = generated_attr['note_rewrite']
-    prompts = generated_attr['note_prompts']
-    expanded = generated_attr['note_expanded']
-    topics = generated_attr['note_topics']
-    
+    ideas = generated_attr['note_ideas']
+    topics_related = generated_attr['note_topics_related']
+    topics_related = markdown_bulletize_list(topics_related, double_brackets=True)
+    topics_contained = generated_attr['note_topics_contained']
+    topics_contained = markdown_bulletize_list(topics_contained, double_brackets=True)
+
     if not note.title:
         note.title = title
 
@@ -211,13 +226,14 @@ for note in notes:
     unique_title = handle_duplicate_name(formatted_title)
 
     # Append generated fields
-    text += '\n\n-------------------------------------------------\n\n'
-    text += f'Generated Title: {title}\n\n'
-    text += f'Generated Type: {type}\n\n'
-    text += f'Generated Rewrite: \n{rewrite}\n\n'
-    text += f'Generated Prompts: \n{prompts}\n\n'
-    text += f'Generated Expansion: \n{expanded}\n\n'
-    text += f'Generated Topics: \n{topics}'
+    text += '\n\n---\n'
+    text += f'#type/{type} (generated)\n\n'
+    text += f'**Contained Topics**:\n{topics_contained}\n\n'
+    text += f'**Related Topics:**: \n{topics_related}\n\n'
+    text += '---\n\n'
+    text += f'**Suggested Title**: {title}\n\n'
+    text += f'**Key Ideas**: \n{ideas}\n\n'
+    text += f'**Rewritten Note**: \n{rewrite}\n\n'
 
     # Save note
     with open(os.path.join(OUTPUT_DIR, unique_title + '.md'), 'w') as f:
@@ -241,13 +257,13 @@ for note in notes:
         with open(os.path.join(OUTPUT_DIR, unique_title + '.md'), 'a') as f:
             f.write(f"\n![{blob_name}]({os.path.join(MEDIA_DIR, blob_name + ext)})")
 
-    # # Once successfully saved, add a "Successfully Exported" label to the Google Keep Note
-    # label_success = keep.findLabel(SUCCESSFUL_EXPORT_LABEL)
-    # if not label_success:
-    #     label_success = keep.createLabel(SUCCESSFUL_EXPORT_LABEL)
-    # note.labels.add(label_success)
+    # Once successfully saved, add a "Successfully Exported" label to the Google Keep Note
+    label_success = keep.findLabel(SUCCESSFUL_EXPORT_LABEL)
+    if not label_success:
+        label_success = keep.createLabel(SUCCESSFUL_EXPORT_LABEL)
+    note.labels.add(label_success)
 
-    # # Remove the "Ready to Export" label
-    # note.labels.remove(label)
+    # Remove the "Ready to Export" label
+    note.labels.remove(label)
 
     keep.sync()
