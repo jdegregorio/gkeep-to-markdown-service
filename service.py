@@ -4,7 +4,6 @@ import requests
 import gkeepapi
 import mimetypes
 from dotenv import load_dotenv
-import shutil
 
 import logging
 import sys
@@ -39,7 +38,6 @@ if not os.path.exists(OUTPUT_DIR):
     clone_repo(REPO_REMOTE_URL)
 repo = Repo(REPO_DIR)
 
-
 # Authenticate Google Account
 user = os.getenv('GOOGLE_KEEP_USERNAME')
 password = os.getenv('GOOGLE_KEEP_PASSWORD')
@@ -54,21 +52,10 @@ keep.sync()
 label = keep.findLabel(READY_TO_EXPORT_LABEL)
 
 # Find all notes that are ready to export
-# notes =  keep.find(labels=[label])
-notes = keep.find(archived=False, trashed=False, func=lambda x: x.type == EXPORT_NOTE_TYPE)
+notes = keep.find(archived=False, trashed=False, func=lambda x: x.type == EXPORT_NOTE_TYPE, labels=[label])
 notes = list(notes)
 
-# Development Code
-len(notes)
-import random
-random.seed(1989)
-random.shuffle(notes)
-notes = notes[0:3]
-i = -1
-
 for note in notes:
-    i += 1
-    logger.info(f'Starting Note: {note.title}, Note Text Length: {len(note.text)}, Index: {i}')
 
     # Convert note to markdown
     text = note.text
@@ -151,6 +138,7 @@ for note in notes:
     if not label_success:
         label_success = keep.createLabel(SUCCESSFUL_EXPORT_LABEL)
     note.labels.add(label_success)
+    note.archived = True
 
     # Remove the "Ready to Export" label
     note.labels.remove(label)
