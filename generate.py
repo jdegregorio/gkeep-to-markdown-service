@@ -90,8 +90,6 @@ def generate_note_fields(note):
         temperature=0
     )
 
-    print(response)
-
     # Get the function response message
     output = response['choices'][0]['message']['function_call']['arguments']
     return output
