@@ -7,6 +7,8 @@ import mimetypes
 from dotenv import load_dotenv
 
 import logging
+from loguru import logger
+
 import sys
 from generate import generate_note_fields, parse_generated_content
 from git_utils import clone_repo, commit_and_push_new_files
@@ -17,8 +19,7 @@ from utils import format_title, markdown_bulletize_list, handle_duplicate_name
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(stream=sys.stderr, level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger.add("service.log", rotation="10 MB")
 
 # Define config variables
 READY_TO_EXPORT_LABEL = 'Ready to Export'
