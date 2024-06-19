@@ -1,12 +1,15 @@
 import sys
 import re
-import openai
+from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_fixed, before_log
 import logging
 
 # Configure logging
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Setup openai client
+client = OpenAI()
 
 def parse_generated_content(string_object):
     # regular expression patterns for the keys and values
@@ -79,8 +82,8 @@ def generate_note_fields(note):
         }
     ]
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4-0613",
+    response = client.chat.completions.create(
+        model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a highly experienced assistant specializing in Zettlekasten note taking, as well as other personal knowledge management (PKM) systems (i.e. PARA). You are highly trained in reviewing and sythesizing information, and organizing knowlege in an intuitive and clean manner. You are a highly proficient and effective writter and communicator, highly capble of presenting complex ideas and throughts in a clear and understandable way."},
             {"role": "user", "content": f"Please review the contents of the following note.\n\n'''\nNOTE TITLE:  {note.title}\n\nNOTE CONTENTS:\n'''\n{note.text}\n'''"}
@@ -91,5 +94,5 @@ def generate_note_fields(note):
     )
 
     # Get the function response message
-    output = response['choices'][0]['message']['function_call']['arguments']
+    output = response.choices[0].message.function_call.arguments
     return output
