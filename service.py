@@ -43,11 +43,11 @@ repo = Repo(REPO_DIR)
 # Authenticate Google Account
 user = os.getenv('GOOGLE_KEEP_USERNAME')
 password = os.getenv('GOOGLE_KEEP_PASSWORD')
+master_token = os.getenv('GOOGLE_KEEP_MASTER_TOKEN')
 
 # Authenticate
 keep = gkeepapi.Keep()
-keep.login(user, password)
-token = keep.getMasterToken()
+keep.authenticate('user@gmail.com', master_token)
 
 while True:
 
