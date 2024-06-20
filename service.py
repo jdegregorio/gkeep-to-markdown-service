@@ -1,8 +1,8 @@
 import os
 import re
-import requests
+import requests # type: ignore
 import time
-import gkeepapi
+import gkeepapi # type: ignore
 import mimetypes
 from dotenv import load_dotenv
 
@@ -27,6 +27,7 @@ SUCCESSFUL_EXPORT_LABEL = 'Succesfully Exported'
 EXPORT_NOTE_TYPE = gkeepapi.node.NodeType.Note  # define the type of note you want to export
 OUTPUT_DIR = './second-brain/Inbox/'
 MEDIA_DIR = './second-brain/Attachments/'
+MEDIA_FOLDER = 'Attachments/'
 
 # Define git repo parameters
 REPO_REMOTE_URL = 'git@github.com:jdegregorio/second-brain.git'
@@ -106,7 +107,7 @@ while True:
 
             # Append the media link at the end of the note
             with open(os.path.join(OUTPUT_DIR, unique_title + '.md'), 'a') as f:
-                f.write(f"\n![{blob_name}]({os.path.join(MEDIA_DIR, blob_name + ext)})")
+                f.write(f"\n![{blob_name}]({os.path.join(MEDIA_FOLDER, blob_name + ext)})")
 
 
         # Parse/Process generated attributes
