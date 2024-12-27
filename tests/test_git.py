@@ -11,7 +11,7 @@ def test_setup_ssh_for_git(tmp_path):
     assert "GIT_SSH_COMMAND" in os.environ
 
 
-@patch("app.git_sync.git_client.Git")
+@patch("app.clients.git_client.Git")
 def test_clone_repo_if_needed(mock_git_class, tmp_path):
     local_dir = tmp_path / "repo_dir"
     remote_url = "git@github.com:someone/repo.git"
@@ -22,7 +22,7 @@ def test_clone_repo_if_needed(mock_git_class, tmp_path):
     mock_git_class.return_value.clone.assert_called_with(remote_url)
 
 
-@patch("app.git_sync.git_client.Repo")
+@patch("app.clients.git_client.Repo")
 def test_commit_and_push_new_files(mock_repo_class):
     mock_repo_instance = MagicMock()
     mock_repo_class.return_value = mock_repo_instance

@@ -20,24 +20,24 @@ jobs:
         with:
           export_default_credentials: true
           service_account_key: ${{ secrets.GCP_SA_KEY }} 
-          project_id: "<YOUR_GCP_PROJECT>"
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Configure Docker to use gcloud as a credential helper
         run: gcloud auth configure-docker --quiet
 
       - name: Build Docker image
         run: |
-          docker build -t "us-central1-docker.pkg.dev/<YOUR_GCP_PROJECT>/<YOUR_ARTIFACT_REPO>/gkeep-sync:latest" .
+          docker build -t "us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/gkeep-sync:latest" .
 
       - name: Push Docker image
         run: |
-          docker push "us-central1-docker.pkg.dev/<YOUR_GCP_PROJECT>/<YOUR_ARTIFACT_REPO>/gkeep-sync:latest"
+          docker push "us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/gkeep-sync:latest"
 
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy gkeep-sync \
-            --image "us-central1-docker.pkg.dev/<YOUR_GCP_PROJECT>/<YOUR_ARTIFACT_REPO>/gkeep-sync:latest" \
-            --region "<REGION>" \
+            --image "us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/gkeep-sync:latest" \
+            --region "${{ secrets.GCP_REGION }}" \
             --platform managed \
             --allow-unauthenticated \
             --set-env-vars GOOGLE_KEEP_USERNAME=${{ secrets.GOOGLE_KEEP_USERNAME }} \

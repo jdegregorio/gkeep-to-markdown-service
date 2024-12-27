@@ -16,7 +16,7 @@ def test_authenticate_keep(mock_keep_class):
     assert result == mock_keep_instance
 
 
-@patch("app.keep.keep_client.authenticate_keep")  # We can chain calls to test separately
+@patch("app.clients.keep_client.authenticate_keep")  # We can chain calls to test separately
 def test_get_ready_notes(mock_auth_keep):
     mock_keep = MagicMock()
     mock_label = MagicMock()
