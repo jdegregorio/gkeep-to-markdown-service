@@ -1,0 +1,48 @@
+
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ "main" ]  # or whichever branch triggers deploy
+  workflow_dispatch:      # allows manual trigger
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      # Configure gcloud CLI
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          export_default_credentials: true
+          service_account_key: ${{ secrets.GCP_SA_KEY }} 
+          project_id: "<YOUR_GCP_PROJECT>"
+
+      - name: Configure Docker to use gcloud as a credential helper
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build -t "us-central1-docker.pkg.dev/<YOUR_GCP_PROJECT>/<YOUR_ARTIFACT_REPO>/gkeep-sync:latest" .
+
+      - name: Push Docker image
+        run: |
+          docker push "us-central1-docker.pkg.dev/<YOUR_GCP_PROJECT>/<YOUR_ARTIFACT_REPO>/gkeep-sync:latest"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy gkeep-sync \
+            --image "us-central1-docker.pkg.dev/<YOUR_GCP_PROJECT>/<YOUR_ARTIFACT_REPO>/gkeep-sync:latest" \
+            --region "<REGION>" \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars GOOGLE_KEEP_USERNAME=${{ secrets.GOOGLE_KEEP_USERNAME }} \
+            --set-env-vars GOOGLE_KEEP_PASSWORD=${{ secrets.GOOGLE_KEEP_PASSWORD }} \
+            --set-env-vars GOOGLE_KEEP_MASTER_TOKEN=${{ secrets.GOOGLE_KEEP_MASTER_TOKEN }} \
+            --set-env-vars OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            --set-env-vars GIT_SSH_KEY=${{ secrets.GIT_DEPLOY_KEY }} \
+            --memory "512Mi"

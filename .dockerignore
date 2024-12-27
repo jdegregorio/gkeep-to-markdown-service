@@ -1,0 +1,15 @@
+# Ignore Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# Ignore .git folder
+.git
+.gitignore
+
+# Ignore local env files
+.env
+
+# Ignore local build artifacts
+dist/
+build/

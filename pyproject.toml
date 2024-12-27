@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "app"
+version = "0.1.0"
+description = "This service polls Google KeepenAI, and syncs with a private Git repo as Markdown files. It runs on Google Cloud Run with daily triggers from Cloud Scheduler."
+authors = ["Joseph DeGregorio <joseeph.degregorio@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+gitdb = "^4.0.11"
+gitpython = "^3.1.43"
+gkeepapi = "^0.16.0"
+loguru = "^0.7.3"
+openai = "^1.58.1"
+pydantic = "^2.10.4"
+requests = "^2.32.3"
+tenacity = "^9.0.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+pytest-cov = "^6.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

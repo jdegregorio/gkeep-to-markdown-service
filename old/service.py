@@ -10,7 +10,7 @@ import logging
 from loguru import logger
 
 import sys
-from generate import generate_note_fields, parse_generated_content
+from old.generate import generate_note_fields, parse_generated_content
 from git_utils import clone_repo, commit_and_push_new_files
 from git import Repo
 from utils import format_title, markdown_bulletize_list, handle_duplicate_name
